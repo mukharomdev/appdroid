@@ -20,7 +20,7 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-					- name: Cache Gradle Dependencies
+- name: Cache Gradle Dependencies
        uses: actions/cache@v3
        with:
          path: ~/.gradle/caches
