@@ -76,5 +76,5 @@ jobs:
         path: app/build/reports/lint-results.html
 
     - name: Debug with SSH
-      uses: mxschmitt/action-tmate@v4
+      uses: mxschmitt/action-tmate@v3
       if: ${{ failure() }}
