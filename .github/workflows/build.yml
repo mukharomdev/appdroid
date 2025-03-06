@@ -1,14 +1,16 @@
-name: Android CI and Publish Debug APK
+name: Android CI
 
 on:
   push:
     branches:
       - main
-  release:
-    types: [published]  # Trigger when a new release is published
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  build-and-publish-debug:
+  build:
+
     runs-on: ubuntu-latest
 
     steps:
@@ -20,23 +22,59 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-    - name: Cache Gradle Dependencies
-       uses: actions/cache@v3
-       with:
-         path: ~/.gradle/caches
-         key: gradle-caches-${{ runner.os }}-${{ hashFiles('**/*.gradle') }}
-         restore-keys: |
-           gradle-caches-${{ runner.os }}-
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug  # Build the debug APK
-
-    - name: Upload Debug APK to GitHub Releases
-      uses: actions/upload-release-asset@v1
+    - name: Cache Gradle dependencies
+      uses: actions/cache@v3
       with:
-        upload_url: ${{ github.event.release.upload_url }}  # Automatically provided by GitHub
-        asset_path: app/build/outputs/apk/debug/app-debug.apk  # Path to the debug APK
-        asset_name: app-debug.apk  # Name of the APK file
-        asset_content_type: application/vnd.android.package-archive  # MIME type for APK
+        path: ~/.gradle/caches
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    - name: Build with Gradle
+      run: ./gradlew build
+
+    - name: Run tests
+      run: ./gradlew test
+
+    - name: Save build logs
+      if: always()
+      run: |
+        mkdir -p logs
+        ./gradlew build > logs/build.log 2>&1
+      continue-on-error: true
+
+    - name: Upload build logs
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-logs
+        path: logs/build.log
+
+    - name: Save test logs
+      if: always()
+      run: |
+        mkdir -p logs
+        ./gradlew test > logs/test.log 2>&1
+      continue-on-error: true
+
+    - name: Upload test logs
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-logs
+        path: logs/test.log
+
+    - name: Run lint
+      run: ./gradlew lint
+
+    - name: Upload lint results
+      uses: actions/upload-artifact@v3
+      with:
+        name: lint-results
+        path: app/build/reports/lint-results.html
+
+    - name: Debug with SSH
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ failure() }}
